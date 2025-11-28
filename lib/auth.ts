@@ -32,3 +32,23 @@ export async function getCurrentUser() {
 
   return user ?? null;
 }
+
+import { cookies } from "next/headers";
+
+// you already have this constant earlier in the file:
+const SESSION_COOKIE = "emt_session";
+
+// ...your existing code (login, getCurrentUser, etc.)
+
+export async function logout() {
+  const cookieStore = cookies();
+
+  // Clear the cookie by setting it expired
+  cookieStore.set(SESSION_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    expires: new Date(0),
+  });
+}
