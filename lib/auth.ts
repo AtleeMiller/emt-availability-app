@@ -1,37 +1,34 @@
+// lib/auth.ts
 import { cookies } from "next/headers";
-import { prisma } from "./prisma";
-import bcrypt from "bcryptjs";
+import { getPrisma } from "./prisma";
 
 const SESSION_COOKIE = "emt_session";
 
-export async function login(email: string, password: string) {
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return null;
+type SessionPayload = {
+  userId: number;
+};
 
-  const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) return null;
-
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, String(user.id), {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-
-  return user;
-}
-
-export async function logout() {
-  const cookieStore = await cookies();
-  cookieStore.delete(SESSION_COOKIE);
+function parseSession(raw: string | undefined): SessionPayload | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as SessionPayload;
+    if (!parsed.userId || typeof parsed.userId !== "number") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 export async function getCurrentUser() {
-  const cookieStore = await cookies();
-  const value = cookieStore.get(SESSION_COOKIE)?.value;
-  if (!value) return null;
-  const id = Number(value);
-  if (!id) return null;
-  return prisma.user.findUnique({ where: { id } });
+  const cookieStore = cookies();
+  const raw = cookieStore.get(SESSION_COOKIE)?.value;
+  const payload = parseSession(raw);
+  if (!payload) return null;
+
+  const prisma = getPrisma();
+  const user = await prisma.user.findUnique({
+    where: { id: payload.userId },
+  });
+
+  return user ?? null;
 }

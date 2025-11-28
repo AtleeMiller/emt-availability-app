@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getPrisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
+const SESSION_COOKIE = "emt_session";
+
 export async function POST(req: Request) {
   const prisma = getPrisma();
 
@@ -26,11 +28,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid login" }, { status: 401 });
   }
 
-  // Set basic session cookie
-  return NextResponse.json({
+  const res = NextResponse.json({
     id: user.id,
     name: user.name,
     email: user.email,
     role: user.role,
   });
+
+  // Simple JSON cookie storing the userId so getCurrentUser() can find them
+  res.cookies.set(
+    SESSION_COOKIE,
+    JSON.stringify({ userId: user.id }),
+    {
+      httpOnly: true,
+      path: "/",
+    }
+  );
+
+  return res;
 }
